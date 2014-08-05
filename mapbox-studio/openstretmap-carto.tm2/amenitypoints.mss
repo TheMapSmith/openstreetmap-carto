@@ -5,7 +5,7 @@
 @transportation-icon: #0092da;
 @transportation-text: #0066ff;
 
-.points {
+#points {
   [tourism = 'alpine_hut'][zoom >= 13]::tourism {
     point-file: url('symbols/alpinehut.p.16.png');
     point-placement: interior;
@@ -404,7 +404,7 @@
 }
 
 
-.text {
+#text {
   [place = 'island'][zoom >= 12]::place {
     text-name: "[name]";
     text-fill: #000;

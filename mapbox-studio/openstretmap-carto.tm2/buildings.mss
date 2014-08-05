@@ -4,7 +4,7 @@
 @placeOfWorship: #777;
 @terminal: #cc99ff;
 
-#buildings-lz {
+#buildings_lz {
   [zoom >= 10] {
     [railway = 'station']::railway,
     [building = 'station'] {

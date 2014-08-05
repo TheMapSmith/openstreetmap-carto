@@ -412,7 +412,7 @@
   }
 }
 
-#landuse-overlay {
+#landuse_overlay {
   [landuse = 'military'][zoom >= 10]::landuse {
     polygon-pattern-file: url('symbols/military_red_hatch.png');
     polygon-pattern-alignment: global;
@@ -434,7 +434,7 @@
   }
 }
 
-#area-barriers {
+#area_barriers {
   [zoom >= 16] {
     line-color: #444;
     line-width: 0.4;
@@ -444,7 +444,7 @@
   }
 }
 
-.barriers {
+#barriers {
   [zoom >= 16] {
     line-width: 0.4;
     line-color: #444;
@@ -459,7 +459,7 @@
   }
 }
 
-#tree-row {
+#tree_row {
   [natural = 'tree_row'][zoom >= 16] {
     line-pattern-file: url('symbols/tree_row.png');
     [zoom >= 17] {
@@ -468,7 +468,7 @@
   }
 }
 
-#theme-park {
+#theme_park {
   [tourism = 'theme_park'][zoom >= 13] {
     line-color: #734a08;
     line-width: 1.5;

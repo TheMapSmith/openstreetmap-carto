@@ -1,4 +1,4 @@
-.symbols {
+#symbols {
   [aeroway = 'helipad'][zoom >= 16]::aeroway {
     point-file: url('symbols/helipad.p.16.png');
     text-name: "[name]";

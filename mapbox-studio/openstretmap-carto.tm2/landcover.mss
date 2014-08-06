@@ -400,7 +400,7 @@
 }
 
 /* man_made=cutline */
-#landcover-line {
+#landcover_line {
   [zoom >= 14] {
     line-width: 3;
     line-join: round;

@@ -10,8 +10,8 @@ bounds:
   - 180
   - 85.0511
 center: 
-  - -97.74669170379639
-  - 30.262811037851165
+  - -97.74763584136963
+  - 30.264441970683485
   - 15
 description: ''
 format: "png8:m=h"
@@ -22,12 +22,5 @@ minzoom: 0
 name: ''
 source: "tmsource:///Users/spoon/Documents/git/openstreetmap-carto/mapbox-studio/OSMDB.tm2source"
 styles: 
-  - style.mss
-  - admin.mss
-  - amenitypoints.mss
-  - amenitysymbols.mss
-  - buildings.mss
-  - landcover.mss
-  - roads.mss
-  - water.mss
+  - combined-reversed.mss
 template: ''

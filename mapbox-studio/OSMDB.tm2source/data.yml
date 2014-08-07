@@ -11,7 +11,7 @@ center:
   - 16
 description: Modify the connection strings
 Layer: 
-  - id: theme_park
+  - id: landcover
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -21,17 +21,44 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: (select way,name,tourism from planet_osm_polygon where tourism='theme_park') as theme_park
+      table: |-
+        (select way, name, religion,
+        coalesce (aeroway, amenity, landuse, leisure, military, 'natural',  'power', tourism, highway) as feature from (
+        select way, COALESCE(name,' ') AS name, 
+        ('aeroway_' || (case when aeroway in ('apron', 'aerodrome') then aeroway else null end)) as aeroway,
+        ('amenity_' || (case when amenity in ('parking', 'university', 'college', 'school', 'hospital', 'kindergarten', 'grave_yard') then amenity else null end)) as amenity,
+        ('landuse_' || (case when landuse in ('quarry', 'vineyard', 'orchard', 'cemetery', 'residential', 'garages', 'field', 'meadow', 'grass', 'allotments', 'forest', 'farmyard', 'farm', 'farmland', 'recreation_ground', 'conservation', 'village_green', 'retail', 'industrial', 'railway', 'commercial', 'brownfield', 'landfill', 'construction') then landuse else null end)) as landuse,
+        ('leisure_' || (case when leisure in ('swimming_pool', 'playground', 'park', 'recreation_ground', 'common', 'garden', 'golf_course', 'picnic_table','sports_centre','stadium','pitch','track') then leisure else null end)) as leisure,
+        ('military_' || (case when military in ('barracks', 'danger_area') then military else null end)) as military,
+        ('natural_' || (case when 'natural' in ('beach','desert','heath','mud','grassland','wood','sand','scrub') then "natural" else null end)) as "natural",
+        ('power_' || (case when 'power' in ('station','sub_station','substation','generator') then 'power' else null end)) as "power",
+        ('tourism_' || (case when  tourism in ('attraction', 'camp_site', 'caravan_site', 'picnic_site', 'zoo') then tourism else null end)) as tourism,
+        ('highway_' || (case when highway in ('services', 'rest_area') then highway else null end)) as highway,
+        case when religion in ('christian','jewish') then religion else 'INT-generic'::text end as religion
+               from planet_osm_polygon
+               where landuse is not null
+                  or leisure is not null
+                or aeroway in ('apron','aerodrome')
+                  or amenity in ('parking','university','college','school','hospital','kindergarten','grave_yard')
+                  or military in ('barracks','danger_area')
+                  or "natural" in ('beach','desert','heath','mud','grassland','wood','sand','scrub')
+                  or power in ('station','sub_station','substation','generator')
+                  or tourism in ('attraction','camp_site','caravan_site','picnic_site','zoo')
+                  or highway in ('services','rest_area')
+               order by z_order,way_area desc
+              ) as landcover
+        ) as features
       type: postgis
       user: spoon
-    description: ''
+    description: Landcover features
     fields: 
+      feature: String
       name: String
-      tourism: String
+      religion: String
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: nature_reserve_boundaries
+  - id: landcover_line
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -41,18 +68,18 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: (select way,way_area,name,boundary from planet_osm_polygon where (boundary='national_park' or leisure='nature_reserve') and building is null) as national_park_boundaries
+      table: |-
+        (select way
+        from planet_osm_line
+        where man_made='cutline'
+        ) as landcover_line
       type: postgis
       user: spoon
-    description: ''
-    fields: 
-      boundary: String
-      name: String
-      way_area: Number
+    description: Landcover Line
+    fields: {}
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: admin_text
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -62,17 +89,146 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: "(select way, name, admin_level from planet_osm_polygon where \"boundary\" = 'administrative' and admin_level in ('0','1','2','3','4','5','6','7','8','9','10')) as admin_text"
+      table: |-
+        (select way, name, religion,
+        coalesce (aeroway, amenity, landuse, leisure, military, 'natural',  'power', tourism, highway) as feature from (
+        select way, COALESCE(name,' ') AS name, 
+        ('aeroway_' || (case when aeroway in ('apron', 'aerodrome') then aeroway else null end)) as aeroway,
+        ('amenity_' || (case when amenity in ('parking', 'university', 'college', 'school', 'hospital', 'kindergarten', 'grave_yard') then amenity else null end)) as amenity,
+        ('landuse_' || (case when landuse in ('quarry', 'vineyard', 'orchard', 'cemetery', 'residential', 'garages', 'field', 'meadow', 'grass', 'allotments', 'forest', 'farmyard', 'farm', 'farmland', 'recreation_ground', 'conservation', 'village_green', 'retail', 'industrial', 'railway', 'commercial', 'brownfield', 'landfill', 'construction') then landuse else null end)) as landuse,
+        ('leisure_' || (case when leisure in ('swimming_pool', 'playground', 'park', 'recreation_ground', 'common', 'garden', 'golf_course', 'picnic_table','sports_centre','stadium','pitch','track') then leisure else null end)) as leisure,
+        ('military_' || (case when military in ('barracks', 'danger_area') then military else null end)) as military,
+        ('natural_' || (case when 'natural' in ('beach','desert','heath','mud','grassland','wood','sand','scrub') then "natural" else null end)) as "natural",
+        ('power_' || (case when 'power' in ('station','sub_station','substation','generator') then 'power' else null end)) as "power",
+        ('tourism_' || (case when  tourism in ('attraction', 'camp_site', 'caravan_site', 'picnic_site', 'zoo') then tourism else null end)) as tourism,
+        ('highway_' || (case when highway in ('services', 'rest_area') then highway else null end)) as highway,
+        case when religion in ('christian','jewish') then religion else 'INT-generic'::text end as religion
+               from planet_osm_polygon
+               where landuse is not null
+                  or leisure is not null
+                or aeroway in ('apron','aerodrome')
+                  or amenity in ('parking','university','college','school','hospital','kindergarten','grave_yard')
+                  or military in ('barracks','danger_area')
+                  or "natural" in ('beach','desert','heath','mud','grassland','wood','sand','scrub')
+                  or power in ('station','sub_station','substation','generator')
+                  or tourism in ('attraction','camp_site','caravan_site','picnic_site','zoo')
+                  or highway in ('services','rest_area')
+               order by z_order,way_area desc
+              ) as landcover
+        ) as features
+      type: postgis
+      user: spoon
+    description: Landcover features
+    fields: 
+      feature: String
+      name: String
+      religion: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: water_lines_casing
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |
+        (select way,waterway,case when tunnel in ('yes','culvert') then 'yes' else 'no' end as int_tunnel 
+              from planet_osm_line
+              where waterway in ('stream','drain','ditch')
+                and (tunnel is null or tunnel != 'yes')
+              ) as water_lines_casing
       type: postgis
       user: spoon
     description: ''
     fields: 
-      admin_level: String
-      name: String
+      int_tunnel: String
+      waterway: String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: water_lines_text
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: water_lines_low_zoom
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,waterway
+              from planet_osm_line
+              where waterway='river'
+              ) as water_lines_low_zoom
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      waterway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: water_areas
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,"natural",waterway,landuse,name
+              from planet_osm_polygon
+              where (waterway in ('dock','mill_pond','riverbank','canal')
+                 or landuse in ('reservoir','water','basin')
+                 or "natural" in ('lake','water','land','glacier','mud'))
+                 and building is null
+              order by z_order,way_area desc
+              ) as water_areas
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      landuse: String
+      name: String
+      natural: String
+      waterway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: water_areas_overlay
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,"natural"
+              from planet_osm_polygon
+              where "natural" in ('marsh','wetland') and building is null
+              order by z_order,way_area desc
+              ) as water_areas_overlay
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      natural: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: water_lines
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -86,8 +242,9 @@ Layer:
               (select way,waterway,lock,name,case when tunnel in ('yes','culvert') then 'yes' else 'no' end as int_tunnel
               from planet_osm_line
               where waterway in ('weir','river','canal','derelict_canal','stream','drain','ditch','wadi')
-               order by z_order
-              ) as water_lines_text
+                and (bridge is null or bridge not in ('yes','true','1','aqueduct'))
+              order by z_order
+              ) as water_lines
       type: postgis
       user: spoon
     description: ''
@@ -98,8 +255,8 @@ Layer:
       waterway: String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: housenames
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: dam
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -109,20 +266,16 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-        (select way,"addr:housename" from planet_osm_polygon where "addr:housename" is not null and building is not null
-               union
-               select way,"addr:housename" from planet_osm_point where "addr:housename" is not null
-              ) as housenames
+      table: (select way,name from planet_osm_line where waterway='dam') as dam
       type: postgis
       user: spoon
     description: ''
     fields: 
-      "addr:housename": String
+      name: String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: housenumbers
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: marinas_area
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -132,38 +285,15 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-              (select way,"addr:housenumber" from planet_osm_polygon where "addr:housenumber" is not null and building is not null
-               union
-               select way,"addr:housenumber" from planet_osm_point where "addr:housenumber" is not null
-              ) as housenumbers
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      "addr:housenumber": String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: interpolation
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way from planet_osm_line where \"addr:interpolation\" is not null) as interpolation"
+      table: (select way from planet_osm_polygon where leisure ='marina') as marinas_area
       type: postgis
       user: spoon
     description: ''
     fields: {}
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: building_text
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: piers_area
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -173,65 +303,16 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: (select name, way, way_area from planet_osm_polygon where building is not null  and building not in ('no','station','supermarket')) as building_text
+      table: (select way,man_made from planet_osm_polygon where man_made in ('pier','breakwater','groyne')) as piers_area
       type: postgis
       user: spoon
     description: ''
     fields: 
-      name: String
-      way_area: Number
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: text_poly
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,aeroway,shop,access,amenity,leisure,landuse,man_made,"natural",place,tourism,NULL as ele,name,ref,military,waterway,historic,way_area
-               from planet_osm_polygon
-               where amenity is not null
-                  or shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
-                  or leisure is not null
-                  or landuse is not null
-                  or tourism is not null
-                  or "natural" is not null
-                  or man_made in ('lighthouse','windmill')
-                  or place='island'
-                  or military='danger_area'
-                  or historic in ('memorial','archaeological_site')
-              ) as text_poly
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      aeroway: String
-      amenity: String
-      ele: String
-      historic: String
-      landuse: String
-      leisure: String
       man_made: String
-      military: String
-      name: String
-      natural: String
-      place: String
-      ref: String
-      shop: String
-      tourism: String
-      waterway: String
-      way_area: Number
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: text
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: piers
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -241,47 +322,16 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-              (select way,amenity,shop,access,leisure,landuse,man_made,"natural",place,tourism,ele,name,ref,military,aeroway,waterway,historic,NULL as way_area
-               from planet_osm_point
-               where amenity is not null
-                  or shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
-                  or leisure is not null
-                  or landuse is not null
-                  or tourism is not null
-                  or "natural" is not null
-                  or man_made in ('lighthouse','windmill')
-                  or place='island'
-                  or military='danger_area'
-                  or aeroway='gate'
-                  or waterway='lock'
-                  or historic in ('memorial','archaeological_site')
-              ) as text
+      table: (select way,man_made from planet_osm_line where man_made in ('pier','breakwater','groyne')) as piers
       type: postgis
       user: spoon
     description: ''
     fields: 
-      access: String
-      aeroway: String
-      amenity: String
-      ele: String
-      historic: String
-      landuse: String
-      leisure: String
       man_made: String
-      military: String
-      name: String
-      natural: String
-      place: String
-      ref: String
-      shop: String
-      tourism: String
-      waterway: String
-      way_area: String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: paths_text_name
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: locks
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -291,227 +341,16 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-              (select way, highway, name
-               from planet_osm_line
-               where highway in ('bridleway', 'footway', 'cycleway', 'path', 'track', 'steps') 
-                 and name is not null
-              ) as paths_text_name
+      table: (select way,waterway from planet_osm_point where waterway='lock_gate') as locks
       type: postgis
       user: spoon
     description: ''
     fields: 
-      highway: String
-      name: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_text_name
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way, highway, name
-               from planet_osm_line
-               where highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street', 'construction','proposed') 
-                 and name is not null
-              ) as roads_text_name
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      highway: String
-      name: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_area_text_name
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way, highway, name
-               from planet_osm_polygon
-               where highway='pedestrian'
-                 and name is not null
-              ) as roads_area_text_name
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      highway: String
-      name: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_text_ref
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,coalesce(highway,aeroway) as highway,ref,char_length(ref) as length,
-               case when bridge in ('yes','true','1') then 'yes'::text else 'no'::text end as bridge
-               from planet_osm_line
-               where (highway is not null or aeroway is not null)
-                 and ref is not null
-                 and char_length(ref) between 1 and 11
-              ) as roads_text_ref
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      bridge: String
-      highway: String
-      length: Number
-      ref: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: highway_junctions
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-             (select way,ref,name
-              from planet_osm_point
-              where highway='motorway_junction'
-             ) as highway_junctions
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-      ref: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_text_ref_low_zoom
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,highway,ref,char_length(ref) as length
-               from planet_osm_roads
-               where highway in ('motorway','trunk','primary','secondary')
-                 and ref is not null
-                 and char_length(ref) between 1 and 11
-              ) as roads_text_ref_low_zoom
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      highway: String
-      length: Number
-      ref: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: power_poles
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way from planet_osm_point where power='pole') as power_poles
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: power_towers
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way from planet_osm_point where power='tower') as power_towers
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: amenity_points_poly
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,amenity,shop,tourism,highway,man_made,access,religion,waterway,lock,historic,leisure
-              from planet_osm_polygon
-              where amenity is not null
-                 or shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
-                 or tourism in ('alpine_hut','camp_site','picnic_site','caravan_site','guest_house','hostel','hotel','motel','museum','viewpoint','bed_and_breakfast','information','chalet')
-                 or highway in ('bus_stop','traffic_signals')
-                 or man_made in ('mast','water_tower')
-                 or historic in ('memorial','archaeological_site')
-                 or leisure in ('playground', 'picnic_table')
-              ) as amenity_points_poly
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      amenity: String
-      highway: String
-      historic: String
-      leisure: String
-      lock: String
-      man_made: String
-      religion: String
-      shop: String
-      tourism: String
       waterway: String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: amenity_points
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: buildings_lz
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -522,129 +361,803 @@ Layer:
       max_size: 512
       port: 5432
       table: |-
-        (select way,amenity,shop,tourism,highway,man_made,access,religion,waterway,lock,historic,leisure
-              from planet_osm_point
-              where shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
-                 or amenity is not null
-                 or tourism in ('alpine_hut','picnic_site','camp_site','caravan_site','guest_house','hostel','hotel','motel','museum','viewpoint','bed_and_breakfast','information','chalet')
-                 or highway in ('bus_stop','traffic_signals','ford')
-                 or man_made in ('mast','water_tower')
-                 or historic in ('memorial','archaeological_site')
-                 or waterway='lock'
-                 or lock='yes'
-                 or leisure in ('playground','slipway','picnic_table')
-              ) as amenity_points
+              (select way,building,railway,amenity from planet_osm_polygon
+               where railway='station'
+                  or building in ('station','supermarket')
+                  or amenity='place_of_worship'
+               order by z_order,way_area desc) as buildings_lz
       type: postgis
       user: spoon
     description: ''
     fields: 
-      access: String
       amenity: String
-      highway: String
-      historic: String
-      leisure: String
-      lock: String
-      man_made: String
-      religion: String
-      shop: String
-      tourism: String
-      waterway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: amenity_symbols_poly
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select *
-              from planet_osm_polygon
-              where aeroway in ('aerodrome','helipad')
-                 or barrier in ('bollard','gate','lift_gate','block')
-                 or highway in ('mini_roundabout','gate')
-                 or man_made in ('lighthouse','power_wind','windmill','mast')
-                 or (power='generator' and ("generator:source"='wind' or power_source='wind'))
-                 or "natural" in ('peak','volcano','spring','tree')
-                 or railway='level_crossing'
-              ) as amenity_symbols_poly
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      "addr:housename": String
-      "addr:housenumber": String
-      "addr:interpolation": String
-      admin_level: String
-      aerialway: String
-      aeroway: String
-      amenity: String
-      area: String
-      barrier: String
-      bicycle: String
-      boundary: String
-      brand: String
-      bridge: String
       building: String
-      construction: String
-      covered: String
-      culvert: String
-      cutting: String
-      denomination: String
-      disused: String
-      embankment: String
-      foot: String
-      "generator:source": String
-      harbour: String
-      highway: String
-      historic: String
-      horse: String
-      intermittent: String
-      junction: String
-      landuse: String
-      layer: String
-      leisure: String
-      lock: String
-      man_made: String
-      military: String
-      motorcar: String
-      name: String
-      natural: String
-      office: String
-      oneway: String
-      operator: String
-      osm_id: Number
-      place: String
-      population: String
-      power: String
-      power_source: String
-      public_transport: String
       railway: String
-      ref: String
-      religion: String
-      route: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: buildings
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,aeroway,
+                case
+                 when building in ('garage','roof','garages','service','shed','shelter','cabin','storage_tank','tank','support','glasshouse','greenhouse','mobile_home','kiosk','silo','canopy','tent') then 'INT-light'::text
+                 else building
+                end as building
+               from planet_osm_polygon
+               where (building is not null
+                 and building not in ('no','station','supermarket','planned')
+                 and (railway is null or railway != 'station')
+                 and (amenity is null or amenity != 'place_of_worship'))
+                  or aeroway = 'terminal'
+               order by z_order,way_area desc) as buildings
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      aeroway: String
+      building: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: tunnels
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and (tunnel='yes' or tunnel='building_passage' or covered='yes') order by layernotnull, z_order) as tunnels"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      bicycle: String
+      construction: String
+      feature: String
+      foot: String
+      horse: String
+      layernotnull: String
+      oneway: String
       service: String
-      shop: String
-      sport: String
-      surface: String
-      toll: String
-      tourism: String
-      "tower:type": String
       tracktype: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: citywalls
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way from planet_osm_line where \"historic\"='citywalls') as citywalls"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: castlewalls
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way from planet_osm_line where \"historic\"='castle_walls') as castlewalls"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: castlewalls_poly
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way from planet_osm_polygon where \"historic\"='castle_walls') as castlewalls_poly"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: landuse_overlay
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,landuse,leisure
+               from planet_osm_polygon
+               where (landuse = 'military') and building is null
+              ) as landuse_overlay
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      landuse: String
+      leisure: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: line_barriers
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way, barrier from planet_osm_line where barrier is not null) as line_barriers
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      barrier: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: cliffs
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way,\"natural\",man_made from planet_osm_line where \"natural\" = 'cliff' or man_made = 'embankment') as cliffs"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      man_made: String
+      natural: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: area_barriers
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way,barrier from planet_osm_polygon where barrier is not null) as area_barriers
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      barrier: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: turning_circle_casing
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select distinct on (p.way) p.way as way,l.highway as int_tc_type,case when l.service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as int_tc_service
+               from planet_osm_point p
+               join planet_osm_line l
+                on ST_DWithin(p.way,l.way,0.1)
+               join (values
+                ('tertiary',1),
+                ('unclassified',2),
+                ('residential',3),
+                ('living_street',4),
+                ('service',5)
+               ) as v (highway,prio)
+                on v.highway=l.highway
+               where p.highway='turning_circle' or p.highway='turning_loop' 
+               order by p.way,v.prio
+              ) as turning_circle_casing
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      int_tc_service: String
+      int_tc_type: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: highway_area_casing
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,coalesce(('highway_' || (case when highway in ('residential','unclassified','pedestrian','service','footway','cycleway','track','path','platform') then highway else null end)), ('railway_' || (case when railway in ('platform') then railway else null end))) as feature from planet_osm_polygon
+               where highway in ('residential','unclassified','pedestrian','service','footway','track','path','platform')
+                  or railway in ('platform')
+               order by z_order,way_area desc) as highway_area_casing
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      feature: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: roads_casing
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "      (select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and (tunnel is null or not tunnel in ('yes','building_passage')) and (covered is null or not covered='yes') and (bridge is null or not bridge in ('yes','true','1','viaduct')) order by z_order)  as roads"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      bicycle: String
+      construction: String
+      feature: String
+      foot: String
+      horse: String
+      layernotnull: String
+      oneway: String
+      service: String
+      tracktype: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: highway_area_fill
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,coalesce(('highway_' || (case when highway in ('residential','unclassified','pedestrian','service','footway','cycleway','living_street','track','path','platform','services') then highway else null end)), ('railway_' || (case when railway in ('platform') then railway else null end)), (('aeroway_' || case when aeroway in ('runway','taxiway','helipad') then aeroway else null end))) as feature from planet_osm_polygon
+               where highway in ('residential','unclassified','pedestrian','service','footway','living_street','track','path','platform','services')
+                  or railway in ('platform')
+                  or aeroway in ('runway','taxiway','helipad')
+               order by z_order,way_area desc) as highway_area_fill
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      feature: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: roads_fill
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "      (select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and (tunnel is null or not tunnel in ('yes','building_passage')) and (covered is null or not covered='yes') and (bridge is null or not bridge in ('yes','true','1','viaduct')) order by z_order)  as roads_fill"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      bicycle: String
+      construction: String
+      feature: String
+      foot: String
+      horse: String
+      layernotnull: String
+      oneway: String
+      service: String
+      tracktype: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: turning_circle_fill
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select distinct on (p.way) p.way as way,l.highway as int_tc_type,case when l.service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as int_tc_service
+               from planet_osm_point p
+               join planet_osm_line l
+                on ST_DWithin(p.way,l.way,0.1)
+               join (values
+                ('tertiary',1),
+                ('unclassified',2),
+                ('residential',3),
+                ('living_street',4),
+                ('service',5)
+               ) as v (highway,prio)
+                on v.highway=l.highway
+               where p.highway='turning_circle' or p.highway='turning_loop' 
+               order by p.way,v.prio
+              ) as turning_circle_fill
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      int_tc_service: String
+      int_tc_type: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: aerialways
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way,aerialway from planet_osm_line where aerialway is not null) as aerialways
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      aerialway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: roads_low_zoom
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,coalesce(('highway_' || (case when highway is not null then highway else null end)), ('railway_' || (case when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('rail','tram','light_rail','funicular','narrow_gauge') then railway else null end))) as feature,tunnel
+               from planet_osm_roads
+               where highway is not null
+                  or (railway is not null and railway!='preserved' and (service is null or service not in ('spur','siding','yard')))
+               order by z_order
+              ) as roads_low_zoom
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      feature: String
       tunnel: String
-      water: String
-      waterway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over 
+  - id: waterway_bridges
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way,name from planet_osm_line where waterway='canal' and bridge in ('yes','true','1','aqueduct') order by z_order) as waterway_bridges
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over 
+  - id: bridges
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and bridge in ('yes','true','1','viaduct') and (layer is null or (layer in ('0','1','2','3','4','5'))) order by layernotnull, z_order) as bridges"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      bicycle: String
+      construction: String
+      feature: String
+      foot: String
+      horse: String
+      layernotnull: String
+      oneway: String
+      service: String
+      tracktype: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: trams
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way,railway,bridge from planet_osm_line where railway='tram' and (tunnel is null or tunnel != 'yes')) as trams
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      bridge: String
+      railway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: guideways
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way from planet_osm_line where highway='bus_guideway' and (tunnel is null or tunnel != 'yes')) as guideways
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: admin_01234
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,admin_level
+               from planet_osm_roads
+               where "boundary"='administrative'
+                 and admin_level in ('0','1','2','3','4')
+               ) as admin_01234
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      admin_level: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: admin_5678
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,admin_level
+               from planet_osm_roads
+               where "boundary"='administrative'
+                 and admin_level in ('5','6','7','8')
+               ) as admin_5678
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      admin_level: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: admin_other
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,admin_level
+               from planet_osm_roads
+               where "boundary"='administrative'
+                 and admin_level in ('9', '10')
+               ) as admin_other	
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      admin_level: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: power_minorline
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way from planet_osm_line where \"power\"='minor_line') as power_minorline"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: power_line
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: "(select way from planet_osm_line where \"power\"='line') as power_line"
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: placenames_large
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,place,name,ref
+               from planet_osm_point
+               where place in ('country','state')
+              ) as placenames_large
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+      place: String
+      ref: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: placenames_capital
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,place,name,ref
+               from planet_osm_point
+               where place in ('city','town') and capital='yes'
+              ) as placenames_capital
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+      place: String
+      ref: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: placenames_medium
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,place,name
+              from planet_osm_point
+              where place in ('city','town')
+                and (capital is null or capital != 'yes')
+              ) as placenames_medium
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+      place: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: placenames_small
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,place,name
+              from planet_osm_point
+              where place in ('suburb','village','hamlet','neighbourhood','locality','isolated_dwelling','farm')
+              ) as placenames_small
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+      place: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: stations
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,name,railway,aerialway,disused
+              from planet_osm_point
+              where railway in ('station','halt','tram_stop','subway_entrance')
+                 or aerialway='station'
+              ) as stations
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      aerialway: String
+      disused: String
+      name: String
+      railway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: stations_poly
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,name,railway,aerialway,disused
+              from planet_osm_polygon
+              where railway in ('station','halt','tram_stop')
+                 or aerialway='station'
+              ) as stations_poly
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      aerialway: String
+      disused: String
+      name: String
+      railway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: glaciers_text
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,name,way_area
+              from planet_osm_polygon
+              where "natural"='glacier' and building is null
+              order by way_area desc
+              ) as glaciers_text
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
       way_area: Number
-      wetland: String
-      width: String
-      wood: String
-      z_order: Number
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
@@ -745,7 +1258,7 @@ Layer:
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: glaciers_text
+  - id: amenity_symbols_poly
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -756,11 +1269,471 @@ Layer:
       max_size: 512
       port: 5432
       table: |-
-              (select way,name,way_area
+        (select *
               from planet_osm_polygon
-              where "natural"='glacier' and building is null
-              order by way_area desc
-              ) as glaciers_text
+              where aeroway in ('aerodrome','helipad')
+                 or barrier in ('bollard','gate','lift_gate','block')
+                 or highway in ('mini_roundabout','gate')
+                 or man_made in ('lighthouse','power_wind','windmill','mast')
+                 or (power='generator' and ("generator:source"='wind' or power_source='wind'))
+                 or "natural" in ('peak','volcano','spring','tree')
+                 or railway='level_crossing'
+              ) as amenity_symbols_poly
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      "addr:housename": String
+      "addr:housenumber": String
+      "addr:interpolation": String
+      admin_level: String
+      aerialway: String
+      aeroway: String
+      amenity: String
+      area: String
+      barrier: String
+      bicycle: String
+      boundary: String
+      brand: String
+      bridge: String
+      building: String
+      construction: String
+      covered: String
+      culvert: String
+      cutting: String
+      denomination: String
+      disused: String
+      embankment: String
+      foot: String
+      "generator:source": String
+      harbour: String
+      highway: String
+      historic: String
+      horse: String
+      intermittent: String
+      junction: String
+      landuse: String
+      layer: String
+      leisure: String
+      lock: String
+      man_made: String
+      military: String
+      motorcar: String
+      name: String
+      natural: String
+      office: String
+      oneway: String
+      operator: String
+      osm_id: Number
+      place: String
+      population: String
+      power: String
+      power_source: String
+      public_transport: String
+      railway: String
+      ref: String
+      religion: String
+      route: String
+      service: String
+      shop: String
+      sport: String
+      surface: String
+      toll: String
+      tourism: String
+      "tower:type": String
+      tracktype: String
+      tunnel: String
+      water: String
+      waterway: String
+      way_area: Number
+      wetland: String
+      width: String
+      wood: String
+      z_order: Number
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: amenity_points
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,amenity,shop,tourism,highway,man_made,access,religion,waterway,lock,historic,leisure
+              from planet_osm_point
+              where shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
+                 or amenity is not null
+                 or tourism in ('alpine_hut','picnic_site','camp_site','caravan_site','guest_house','hostel','hotel','motel','museum','viewpoint','bed_and_breakfast','information','chalet')
+                 or highway in ('bus_stop','traffic_signals','ford')
+                 or man_made in ('mast','water_tower')
+                 or historic in ('memorial','archaeological_site')
+                 or waterway='lock'
+                 or lock='yes'
+                 or leisure in ('playground','slipway','picnic_table')
+              ) as amenity_points
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      amenity: String
+      highway: String
+      historic: String
+      leisure: String
+      lock: String
+      man_made: String
+      religion: String
+      shop: String
+      tourism: String
+      waterway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: amenity_points_poly
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,amenity,shop,tourism,highway,man_made,access,religion,waterway,lock,historic,leisure
+              from planet_osm_polygon
+              where amenity is not null
+                 or shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
+                 or tourism in ('alpine_hut','camp_site','picnic_site','caravan_site','guest_house','hostel','hotel','motel','museum','viewpoint','bed_and_breakfast','information','chalet')
+                 or highway in ('bus_stop','traffic_signals')
+                 or man_made in ('mast','water_tower')
+                 or historic in ('memorial','archaeological_site')
+                 or leisure in ('playground', 'picnic_table')
+              ) as amenity_points_poly
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      amenity: String
+      highway: String
+      historic: String
+      leisure: String
+      lock: String
+      man_made: String
+      religion: String
+      shop: String
+      tourism: String
+      waterway: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: power_towers
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way from planet_osm_point where power='tower') as power_towers
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: power_poles
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way from planet_osm_point where power='pole') as power_poles
+      type: postgis
+      user: spoon
+    description: ''
+    fields: {}
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: roads_text_ref_low_zoom
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,highway,ref,char_length(ref) as length
+               from planet_osm_roads
+               where highway in ('motorway','trunk','primary','secondary')
+                 and ref is not null
+                 and char_length(ref) between 1 and 11
+              ) as roads_text_ref_low_zoom
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      highway: String
+      length: Number
+      ref: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: highway_junctions
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+             (select way,ref,name
+              from planet_osm_point
+              where highway='motorway_junction'
+             ) as highway_junctions
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+      ref: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: roads_text_ref
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,coalesce(highway,aeroway) as highway,ref,char_length(ref) as length,
+               case when bridge in ('yes','true','1') then 'yes'::text else 'no'::text end as bridge
+               from planet_osm_line
+               where (highway is not null or aeroway is not null)
+                 and ref is not null
+                 and char_length(ref) between 1 and 11
+              ) as roads_text_ref
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      bridge: String
+      highway: String
+      length: Number
+      ref: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: roads_area_text_name
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way, highway, name
+               from planet_osm_polygon
+               where highway='pedestrian'
+                 and name is not null
+              ) as roads_area_text_name
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      highway: String
+      name: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: roads_text_name
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way, highway, name
+               from planet_osm_line
+               where highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street', 'construction','proposed') 
+                 and name is not null
+              ) as roads_text_name
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      highway: String
+      name: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: paths_text_name
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way, highway, name
+               from planet_osm_line
+               where highway in ('bridleway', 'footway', 'cycleway', 'path', 'track', 'steps') 
+                 and name is not null
+              ) as paths_text_name
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      highway: String
+      name: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: text
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+              (select way,amenity,shop,access,leisure,landuse,man_made,"natural",place,tourism,ele,name,ref,military,aeroway,waterway,historic,NULL as way_area
+               from planet_osm_point
+               where amenity is not null
+                  or shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
+                  or leisure is not null
+                  or landuse is not null
+                  or tourism is not null
+                  or "natural" is not null
+                  or man_made in ('lighthouse','windmill')
+                  or place='island'
+                  or military='danger_area'
+                  or aeroway='gate'
+                  or waterway='lock'
+                  or historic in ('memorial','archaeological_site')
+              ) as text
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      aeroway: String
+      amenity: String
+      ele: String
+      historic: String
+      landuse: String
+      leisure: String
+      man_made: String
+      military: String
+      name: String
+      natural: String
+      place: String
+      ref: String
+      shop: String
+      tourism: String
+      waterway: String
+      way_area: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: text_poly
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: |-
+        (select way,aeroway,shop,access,amenity,leisure,landuse,man_made,"natural",place,tourism,NULL as ele,name,ref,military,waterway,historic,way_area
+               from planet_osm_polygon
+               where amenity is not null
+                  or shop in ('accessories', 'alcohol', 'antique', 'antiques', 'appliance', 'art', 'baby_goods', 'bag', 'bags', 'bakery', 'bathroom_furnishing', 'beauty', 'bed', 'betting', 'beverages', 'bicycle', 'boat', 'bookmaker', 'books', 'boutique', 'builder', 'building_materials', 'butcher', 'camera', 'car', 'car_parts', 'car_repair', 'car_service', 'carpet', 'charity', 'cheese', 'chemist', 'chocolate', 'clothes', 'coffee', 'communication', 'computer', 'confectionery', 'convenience', 'copyshop', 'cosmetics', 'craft', 'curtain', 'dairy', 'deli', 'delicatessen', 'department_store', 'discount', 'dive', 'doityourself', 'dry_cleaning', 'e-cigarette', 'electrical', 'electronics', 'energy', 'erotic', 'estate_agent', 'fabric', 'farm', 'fashion', 'fish', 'fishing', 'fishmonger', 'flooring', 'florist', 'food', 'frame', 'frozen_food', 'funeral_directors', 'furnace', 'furniture', 'gallery', 'gambling', 'games', 'garden_centre', 'gas', 'general', 'gift', 'glaziery', 'greengrocer', 'grocery', 'hairdresser', 'hardware', 'health', 'health_food', 'hearing_aids', 'herbalist', 'hifi', 'hobby', 'household', 'houseware', 'hunting', 'ice_cream', 'insurance', 'interior_decoration', 'jewellery', 'jewelry', 'kiosk', 'kitchen', 'laundry', 'leather', 'lighting', 'locksmith', 'lottery', 'mall', 'market', 'massage', 'medical', 'medical_supply', 'mobile_phone', 'money_lender', 'motorcycle', 'motorcycle_repair', 'music', 'musical_instrument', 'newsagent', 'office_supplies', 'optician', 'organic', 'outdoor', 'paint', 'pastry', 'pawnbroker', 'perfumery', 'pet', 'pets', 'pharmacy', 'phone', 'photo', 'photo_studio', 'photography', 'pottery', 'printing', 'radiotechnics', 'real_estate', 'religion', 'rental', 'salon', 'scuba_diving', 'seafood', 'second_hand', 'sewing', 'shoe_repair', 'shoes', 'shopping_centre', 'solarium', 'souvenir', 'sports', 'stationery', 'supermarket', 'tailor', 'tanning', 'tattoo', 'tea', 'ticket', 'tiles', 'tobacco', 'toys', 'trade', 'travel_agency', 'tyres', 'vacuum_cleaner', 'variety_store', 'video', 'video_games', 'watches', 'wholesale', 'wine', 'winery', 'yes')
+                  or leisure is not null
+                  or landuse is not null
+                  or tourism is not null
+                  or "natural" is not null
+                  or man_made in ('lighthouse','windmill')
+                  or place='island'
+                  or military='danger_area'
+                  or historic in ('memorial','archaeological_site')
+              ) as text_poly
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      access: String
+      aeroway: String
+      amenity: String
+      ele: String
+      historic: String
+      landuse: String
+      leisure: String
+      man_made: String
+      military: String
+      name: String
+      natural: String
+      place: String
+      ref: String
+      shop: String
+      tourism: String
+      waterway: String
+      way_area: Number
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: building_text
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select name, way, way_area from planet_osm_polygon where building is not null  and building not in ('no','station','supermarket')) as building_text
       type: postgis
       user: spoon
     description: ''
@@ -769,8 +1742,8 @@ Layer:
       way_area: Number
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: stations_poly
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: interpolation
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -780,186 +1753,15 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-              (select way,name,railway,aerialway,disused
-              from planet_osm_polygon
-              where railway in ('station','halt','tram_stop')
-                 or aerialway='station'
-              ) as stations_poly
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      aerialway: String
-      disused: String
-      name: String
-      railway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: stations
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,name,railway,aerialway,disused
-              from planet_osm_point
-              where railway in ('station','halt','tram_stop','subway_entrance')
-                 or aerialway='station'
-              ) as stations
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      aerialway: String
-      disused: String
-      name: String
-      railway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: placenames_small
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,place,name
-              from planet_osm_point
-              where place in ('suburb','village','hamlet','neighbourhood','locality','isolated_dwelling','farm')
-              ) as placenames_small
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-      place: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: placenames_medium
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,place,name
-              from planet_osm_point
-              where place in ('city','town')
-                and (capital is null or capital != 'yes')
-              ) as placenames_medium
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-      place: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: placenames_capital
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,place,name,ref
-               from planet_osm_point
-               where place in ('city','town') and capital='yes'
-              ) as placenames_capital
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-      place: String
-      ref: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: placenames_large
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,place,name,ref
-               from planet_osm_point
-               where place in ('country','state')
-              ) as placenames_large
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-      place: String
-      ref: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: power_line
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way from planet_osm_line where \"power\"='line') as power_line"
+      table: "(select way from planet_osm_line where \"addr:interpolation\" is not null) as interpolation"
       type: postgis
       user: spoon
     description: ''
     fields: {}
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: power_minorline
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way from planet_osm_line where \"power\"='minor_line') as power_minorline"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: admin_other
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: housenumbers
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -970,20 +1772,19 @@ Layer:
       max_size: 512
       port: 5432
       table: |-
-        (select way,admin_level
-               from planet_osm_roads
-               where "boundary"='administrative'
-                 and admin_level in ('9', '10')
-               ) as admin_other	
+              (select way,"addr:housenumber" from planet_osm_polygon where "addr:housenumber" is not null and building is not null
+               union
+               select way,"addr:housenumber" from planet_osm_point where "addr:housenumber" is not null
+              ) as housenumbers
       type: postgis
       user: spoon
     description: ''
     fields: 
-      admin_level: String
+      "addr:housenumber": String
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: admin_5678
+  - id: housenames
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -994,700 +1795,19 @@ Layer:
       max_size: 512
       port: 5432
       table: |-
-        (select way,admin_level
-               from planet_osm_roads
-               where "boundary"='administrative'
-                 and admin_level in ('5','6','7','8')
-               ) as admin_5678
+        (select way,"addr:housename" from planet_osm_polygon where "addr:housename" is not null and building is not null
+               union
+               select way,"addr:housename" from planet_osm_point where "addr:housename" is not null
+              ) as housenames
       type: postgis
       user: spoon
     description: ''
     fields: 
-      admin_level: String
+      "addr:housename": String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: admin_01234
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,admin_level
-               from planet_osm_roads
-               where "boundary"='administrative'
-                 and admin_level in ('0','1','2','3','4')
-               ) as admin_01234
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      admin_level: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: guideways
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way from planet_osm_line where highway='bus_guideway' and (tunnel is null or tunnel != 'yes')) as guideways
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: trams
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,railway,bridge from planet_osm_line where railway='tram' and (tunnel is null or tunnel != 'yes')) as trams
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      bridge: String
-      railway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: bridges
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and bridge in ('yes','true','1','viaduct') and (layer is null or (layer in ('0','1','2','3','4','5'))) order by layernotnull, z_order) as bridges"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      bicycle: String
-      construction: String
-      feature: String
-      foot: String
-      horse: String
-      layernotnull: String
-      oneway: String
-      service: String
-      tracktype: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: waterway_bridges
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,name from planet_osm_line where waterway='canal' and bridge in ('yes','true','1','aqueduct') order by z_order) as waterway_bridges
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_low_zoom
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,coalesce(('highway_' || (case when highway is not null then highway else null end)), ('railway_' || (case when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('rail','tram','light_rail','funicular','narrow_gauge') then railway else null end))) as feature,tunnel
-               from planet_osm_roads
-               where highway is not null
-                  or (railway is not null and railway!='preserved' and (service is null or service not in ('spur','siding','yard')))
-               order by z_order
-              ) as roads_low_zoom
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      feature: String
-      tunnel: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: aerialways
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,aerialway from planet_osm_line where aerialway is not null) as aerialways
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      aerialway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: turning_circle_fill
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select distinct on (p.way) p.way as way,l.highway as int_tc_type,case when l.service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as int_tc_service
-               from planet_osm_point p
-               join planet_osm_line l
-                on ST_DWithin(p.way,l.way,0.1)
-               join (values
-                ('tertiary',1),
-                ('unclassified',2),
-                ('residential',3),
-                ('living_street',4),
-                ('service',5)
-               ) as v (highway,prio)
-                on v.highway=l.highway
-               where p.highway='turning_circle' or p.highway='turning_loop' 
-               order by p.way,v.prio
-              ) as turning_circle_fill
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      int_tc_service: String
-      int_tc_type: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_fill
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "      (select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and (tunnel is null or not tunnel in ('yes','building_passage')) and (covered is null or not covered='yes') and (bridge is null or not bridge in ('yes','true','1','viaduct')) order by z_order)  as roads_fill"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      bicycle: String
-      construction: String
-      feature: String
-      foot: String
-      horse: String
-      layernotnull: String
-      oneway: String
-      service: String
-      tracktype: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: highway_area_fill
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,coalesce(('highway_' || (case when highway in ('residential','unclassified','pedestrian','service','footway','cycleway','living_street','track','path','platform','services') then highway else null end)), ('railway_' || (case when railway in ('platform') then railway else null end)), (('aeroway_' || case when aeroway in ('runway','taxiway','helipad') then aeroway else null end))) as feature from planet_osm_polygon
-               where highway in ('residential','unclassified','pedestrian','service','footway','living_street','track','path','platform','services')
-                  or railway in ('platform')
-                  or aeroway in ('runway','taxiway','helipad')
-               order by z_order,way_area desc) as highway_area_fill
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      feature: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: roads_casing
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "      (select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and (tunnel is null or not tunnel in ('yes','building_passage')) and (covered is null or not covered='yes') and (bridge is null or not bridge in ('yes','true','1','viaduct')) order by z_order)  as roads"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      bicycle: String
-      construction: String
-      feature: String
-      foot: String
-      horse: String
-      layernotnull: String
-      oneway: String
-      service: String
-      tracktype: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: highway_area_casing
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,coalesce(('highway_' || (case when highway in ('residential','unclassified','pedestrian','service','footway','cycleway','track','path','platform') then highway else null end)), ('railway_' || (case when railway in ('platform') then railway else null end))) as feature from planet_osm_polygon
-               where highway in ('residential','unclassified','pedestrian','service','footway','track','path','platform')
-                  or railway in ('platform')
-               order by z_order,way_area desc) as highway_area_casing
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      feature: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: turning_circle_casing
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select distinct on (p.way) p.way as way,l.highway as int_tc_type,case when l.service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as int_tc_service
-               from planet_osm_point p
-               join planet_osm_line l
-                on ST_DWithin(p.way,l.way,0.1)
-               join (values
-                ('tertiary',1),
-                ('unclassified',2),
-                ('residential',3),
-                ('living_street',4),
-                ('service',5)
-               ) as v (highway,prio)
-                on v.highway=l.highway
-               where p.highway='turning_circle' or p.highway='turning_loop' 
-               order by p.way,v.prio
-              ) as turning_circle_casing
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      int_tc_service: String
-      int_tc_type: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: ferry_routes
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way from planet_osm_line where route='ferry' ) as ferry_routes
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: tree_row
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way,\"natural\" from planet_osm_line where \"natural\" = 'tree_row') as tree_row"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      natural: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: area_barriers
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,barrier from planet_osm_polygon where barrier is not null) as area_barriers
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      barrier: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: cliffs
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way,\"natural\",man_made from planet_osm_line where \"natural\" = 'cliff' or man_made = 'embankment') as cliffs"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      man_made: String
-      natural: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: line_barriers
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way, barrier from planet_osm_line where barrier is not null) as line_barriers
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      barrier: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: landuse_overlay
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way,landuse,leisure
-               from planet_osm_polygon
-               where (landuse = 'military') and building is null
-              ) as landuse_overlay
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      landuse: String
-      leisure: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: castlewalls_poly
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way from planet_osm_polygon where \"historic\"='castle_walls') as castlewalls_poly"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: castlewalls
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way from planet_osm_line where \"historic\"='castle_walls') as castlewalls"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: citywalls
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way from planet_osm_line where \"historic\"='citywalls') as citywalls"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: tunnels
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: "(select way,coalesce(('highway_' || highway), ('railway_' ||(case when railway='preserved' and service in ('spur','siding','yard') then 'INT-preserved-ssy'::text when (railway='rail' and service in ('spur','siding','yard'))  then 'INT-spur-siding-yard' when railway in ('light_rail', 'narrow_gauge', 'funicular', 'rail', 'subway', 'tram', 'spur', 'siding', 'monorail', 'platform', 'preserved', 'disused', 'construction', 'miniature', 'turntable') then railway else null end)), ('aeroway_' || aeroway)) as feature, horse, foot, bicycle, tracktype, case when access in ('destination') then 'destination'::text when access in ('no', 'private') then 'no'::text else null end as access, construction, case when service in ('parking_aisle','drive-through','driveway') then 'INT-minor'::text else 'INT-normal'::text end as service, case when oneway in ('yes', '-1') and highway in ('motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','road','service','pedestrian','raceway','living_street','construction') then oneway else null end as oneway, case when layer is null then '0' else layer end as layernotnull from planet_osm_line where (highway in ('motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'residential', 'road', 'unclassified', 'service', 'pedestrian', 'living_street', 'raceway', 'bridleway', 'footway', 'cycleway', 'path', 'track', 'steps', 'platform', 'proposed', 'construction')  or aeroway in ('runway','taxiway') or railway in ('light_rail', 'subway', 'narrow_gauge',  'rail', 'spur', 'siding', 'preserved', 'funicular', 'tram', 'monorail', 'platform', 'miniature', 'turntable', 'disused', 'construction')) and (tunnel='yes' or tunnel='building_passage' or covered='yes') order by layernotnull, z_order) as tunnels"
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      access: String
-      bicycle: String
-      construction: String
-      feature: String
-      foot: String
-      horse: String
-      layernotnull: String
-      oneway: String
-      service: String
-      tracktype: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: buildings
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,aeroway,
-                case
-                 when building in ('garage','roof','garages','service','shed','shelter','cabin','storage_tank','tank','support','glasshouse','greenhouse','mobile_home','kiosk','silo','canopy','tent') then 'INT-light'::text
-                 else building
-                end as building
-               from planet_osm_polygon
-               where (building is not null
-                 and building not in ('no','station','supermarket','planned')
-                 and (railway is null or railway != 'station')
-                 and (amenity is null or amenity != 'place_of_worship'))
-                  or aeroway = 'terminal'
-               order by z_order,way_area desc) as buildings
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      aeroway: String
-      building: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: buildings_lz
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,building,railway,amenity from planet_osm_polygon
-               where railway='station'
-                  or building in ('station','supermarket')
-                  or amenity='place_of_worship'
-               order by z_order,way_area desc) as buildings_lz
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      amenity: String
-      building: String
-      railway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: locks
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,waterway from planet_osm_point where waterway='lock_gate') as locks
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      waterway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: piers
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,man_made from planet_osm_line where man_made in ('pier','breakwater','groyne')) as piers
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      man_made: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: piers_area
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,man_made from planet_osm_polygon where man_made in ('pier','breakwater','groyne')) as piers_area
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      man_made: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: marinas_area
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way from planet_osm_polygon where leisure ='marina') as marinas_area
-      type: postgis
-      user: spoon
-    description: ''
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: dam
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: (select way,name from planet_osm_line where waterway='dam') as dam
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      name: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: water_lines
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: water_lines_text
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -1701,9 +1821,8 @@ Layer:
               (select way,waterway,lock,name,case when tunnel in ('yes','culvert') then 'yes' else 'no' end as int_tunnel
               from planet_osm_line
               where waterway in ('weir','river','canal','derelict_canal','stream','drain','ditch','wadi')
-                and (bridge is null or bridge not in ('yes','true','1','aqueduct'))
-              order by z_order
-              ) as water_lines
+               order by z_order
+              ) as water_lines_text
       type: postgis
       user: spoon
     description: ''
@@ -1714,8 +1833,8 @@ Layer:
       waterway: String
     properties: 
       "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: water_areas_overlay
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over    
+  - id: admin_text
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -1725,51 +1844,17 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-              (select way,"natural"
-              from planet_osm_polygon
-              where "natural" in ('marsh','wetland') and building is null
-              order by z_order,way_area desc
-              ) as water_areas_overlay
+      table: "(select way, name, admin_level from planet_osm_polygon where \"boundary\" = 'administrative' and admin_level in ('0','1','2','3','4','5','6','7','8','9','10')) as admin_text"
       type: postgis
       user: spoon
     description: ''
     fields: 
-      natural: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: water_areas
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-              (select way,"natural",waterway,landuse,name
-              from planet_osm_polygon
-              where (waterway in ('dock','mill_pond','riverbank','canal')
-                 or landuse in ('reservoir','water','basin')
-                 or "natural" in ('lake','water','land','glacier','mud'))
-                 and building is null
-              order by z_order,way_area desc
-              ) as water_areas
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      landuse: String
+      admin_level: String
       name: String
-      natural: String
-      waterway: String
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: water_lines_low_zoom
+  - id: nature_reserve_boundaries
     Datasource: 
       dbname: gis
       extent: -20037508.34,-20037508.34,20037508.34,20037508.34
@@ -1779,113 +1864,37 @@ Layer:
       key_field: ''
       max_size: 512
       port: 5432
-      table: |-
-        (select way,waterway
-              from planet_osm_line
-              where waterway='river'
-              ) as water_lines_low_zoom
+      table: (select way,way_area,name,boundary from planet_osm_polygon where (boundary='national_park' or leisure='nature_reserve') and building is null) as national_park_boundaries
       type: postgis
       user: spoon
     description: ''
     fields: 
-      waterway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: water_lines_casing
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |
-        (select way,waterway,case when tunnel in ('yes','culvert') then 'yes' else 'no' end as int_tunnel 
-              from planet_osm_line
-              where waterway in ('stream','drain','ditch')
-                and (tunnel is null or tunnel != 'yes')
-              ) as water_lines_casing
-      type: postgis
-      user: spoon
-    description: ''
-    fields: 
-      int_tunnel: String
-      waterway: String
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: landcover_line
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way
-        from planet_osm_line
-        where man_made='cutline'
-        ) as landcover_line
-      type: postgis
-      user: spoon
-    description: Landcover Line
-    fields: {}
-    properties: 
-      "buffer-size": 8
-    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
-  - id: landcover
-    Datasource: 
-      dbname: gis
-      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
-      geometry_field: ''
-      geometry_table: ''
-      host: localhost
-      key_field: ''
-      max_size: 512
-      port: 5432
-      table: |-
-        (select way, name, religion,
-        coalesce (aeroway, amenity, landuse, leisure, military, 'natural',  'power', tourism, highway) as feature from (
-        select way, COALESCE(name,' ') AS name, 
-        ('aeroway_' || (case when aeroway in ('apron', 'aerodrome') then aeroway else null end)) as aeroway,
-        ('amenity_' || (case when amenity in ('parking', 'university', 'college', 'school', 'hospital', 'kindergarten', 'grave_yard') then amenity else null end)) as amenity,
-        ('landuse_' || (case when landuse in ('quarry', 'vineyard', 'orchard', 'cemetery', 'residential', 'garages', 'field', 'meadow', 'grass', 'allotments', 'forest', 'farmyard', 'farm', 'farmland', 'recreation_ground', 'conservation', 'village_green', 'retail', 'industrial', 'railway', 'commercial', 'brownfield', 'landfill', 'construction') then landuse else null end)) as landuse,
-        ('leisure_' || (case when leisure in ('swimming_pool', 'playground', 'park', 'recreation_ground', 'common', 'garden', 'golf_course', 'picnic_table','sports_centre','stadium','pitch','track') then leisure else null end)) as leisure,
-        ('military_' || (case when military in ('barracks', 'danger_area') then military else null end)) as military,
-        ('natural_' || (case when 'natural' in ('beach','desert','heath','mud','grassland','wood','sand','scrub') then "natural" else null end)) as "natural",
-        ('power_' || (case when 'power' in ('station','sub_station','substation','generator') then 'power' else null end)) as "power",
-        ('tourism_' || (case when  tourism in ('attraction', 'camp_site', 'caravan_site', 'picnic_site', 'zoo') then tourism else null end)) as tourism,
-        ('highway_' || (case when highway in ('services', 'rest_area') then highway else null end)) as highway,
-        case when religion in ('christian','jewish') then religion else 'INT-generic'::text end as religion
-               from planet_osm_polygon
-               where landuse is not null
-                  or leisure is not null
-                or aeroway in ('apron','aerodrome')
-                  or amenity in ('parking','university','college','school','hospital','kindergarten','grave_yard')
-                  or military in ('barracks','danger_area')
-                  or "natural" in ('beach','desert','heath','mud','grassland','wood','sand','scrub')
-                  or power in ('station','sub_station','substation','generator')
-                  or tourism in ('attraction','camp_site','caravan_site','picnic_site','zoo')
-                  or highway in ('services','rest_area')
-               order by z_order,way_area desc
-              ) as landcover
-        ) as features
-      type: postgis
-      user: spoon
-    description: Landcover features
-    fields: 
-      feature: String
+      boundary: String
       name: String
-      religion: String
+      way_area: Number
     properties: 
       "buffer-size": 8
     srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over
+  - id: theme_park
+    Datasource: 
+      dbname: gis
+      extent: -20037508.34,-20037508.34,20037508.34,20037508.34
+      geometry_field: ''
+      geometry_table: ''
+      host: localhost
+      key_field: ''
+      max_size: 512
+      port: 5432
+      table: (select way,name,tourism from planet_osm_polygon where tourism='theme_park') as theme_park
+      type: postgis
+      user: spoon
+    description: ''
+    fields: 
+      name: String
+      tourism: String
+    properties: 
+      "buffer-size": 8
+    srs: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0.0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs +over        
 maxzoom: 22
 minzoom: 0
 name: OSMDB

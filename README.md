@@ -10,9 +10,16 @@ The hardest part was figuring out what to do with the special characters in the 
 
 Find and replace:
 \n -> [Return]
+
 \ -> [Deleted]
+
 .id (TM1) -> # (TM2)
+
 - -> _	(in source names)
+
+### Lessons Learned:
+
+The data order in the data.yml is different from the order in project.mml (reversed)
 
 These were pretty inconsistent throughout the various SQL queries...
 

@@ -131,7 +131,7 @@
 @paths-bridge-casing-width:       0.5;
 @paths-tunnel-casing-width:       1;
 
-#roads_casing, #bridges, #tunnels {
+#roads_casing, #tunnels_casing {
   ::casing_links {
     [feature = 'highway_raceway'] {
       [zoom >= 12] {
@@ -778,7 +778,7 @@
   }
 }
 
-#roads_fill,#bridges,#tunnels {
+#roads_fill,#bridges_fill,#tunnels_fill {
   ::fill_links {
     [feature = 'highway_motorway_link'] {
       [zoom >= 12] {
@@ -2179,6 +2179,7 @@
   }
 }
 
+
 #roads_text_ref {
   [highway = 'motorway'][length < 12] {
     [zoom >= 13] {
@@ -2303,10 +2304,10 @@
       text-size: 8;
       text-fill: black;
       text-spacing: 300;
-      text-clip: false;
+      text-clip: true;
       text-placement: line;
       text-face-name: @book-fonts;
-      text-halo-radius: 0;
+      text-halo-radius: 1;
     }
     [zoom >= 14] {
       text-size: 9;
